@@ -2834,7 +2834,13 @@ func (h *ResponseHeader) parseHeaders(buf []byte) (int, error) {
 		switch s.key[0] | 0x20 {
 		case 'c':
 			if caseInsensitiveCompare(s.key, strContentType) {
-				h.contentType = append(h.contentType[:0], s.value...)
+				if len(h.contentType) == 0 {
+					h.contentType = append(h.contentType, s.value...)
+				} else {
+					h.contentType = append(h.contentType, ',')
+					h.contentType = append(h.contentType, s.value...)
+				}
+
 				continue
 			}
 			if caseInsensitiveCompare(s.key, strContentEncoding) {
@@ -2857,6 +2863,7 @@ func (h *ResponseHeader) parseHeaders(buf []byte) (int, error) {
 			if caseInsensitiveCompare(s.key, strConnection) {
 				if bytes.Equal(s.value, strClose) {
 					h.connectionClose = true
+					h.h = appendArgBytes(h.h, s.key, s.value, argsHasValue)
 				} else {
 					h.connectionClose = false
 					h.h = appendArgBytes(h.h, s.key, s.value, argsHasValue)
@@ -2865,7 +2872,12 @@ func (h *ResponseHeader) parseHeaders(buf []byte) (int, error) {
 			}
 		case 's':
 			if caseInsensitiveCompare(s.key, strServer) {
-				h.server = append(h.server[:0], s.value...)
+				if len(h.server) == 0 {
+					h.server = append(h.server, s.value...)
+				} else {
+					h.server = append(h.server, ',')
+					h.server = append(h.server, s.value...)
+				}
 				continue
 			}
 			if caseInsensitiveCompare(s.key, strSetCookie) {
@@ -2961,17 +2973,32 @@ func (h *RequestHeader) parseHeaders(buf []byte) (int, error) {
 		switch s.key[0] | 0x20 {
 		case 'h':
 			if caseInsensitiveCompare(s.key, strHost) {
-				h.host = append(h.host[:0], s.value...)
+				if len(h.host) == 0 {
+					h.host = append(h.host, s.value...)
+				} else {
+					h.host = append(h.host, ',')
+					h.host = append(h.host, s.value...)
+				}
 				continue
 			}
 		case 'u':
 			if caseInsensitiveCompare(s.key, strUserAgent) {
-				h.userAgent = append(h.userAgent[:0], s.value...)
+				if len(h.userAgent) == 0 {
+					h.userAgent = append(h.userAgent, s.value...)
+				} else {
+					h.userAgent = append(h.userAgent, ',')
+					h.userAgent = append(h.userAgent, s.value...)
+				}
 				continue
 			}
 		case 'c':
 			if caseInsensitiveCompare(s.key, strContentType) {
-				h.contentType = append(h.contentType[:0], s.value...)
+				if len(h.contentType) == 0 {
+					h.contentType = append(h.contentType, s.value...)
+				} else {
+					h.contentType = append(h.contentType, ',')
+					h.contentType = append(h.contentType, s.value...)
+				}
 				continue
 			}
 			if caseInsensitiveCompare(s.key, strContentLength) {
@@ -2996,6 +3023,7 @@ func (h *RequestHeader) parseHeaders(buf []byte) (int, error) {
 			if caseInsensitiveCompare(s.key, strConnection) {
 				if bytes.Equal(s.value, strClose) {
 					h.connectionClose = true
+					h.h = appendArgBytes(h.h, s.key, s.value, argsHasValue)
 				} else {
 					h.connectionClose = false
 					h.h = appendArgBytes(h.h, s.key, s.value, argsHasValue)
