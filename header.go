@@ -58,6 +58,9 @@ type ResponseHeader struct {
 	statusCode int
 
 	noDefaultDate bool
+	// stores an immutable copy of headers as they were received from the
+	// wire.
+	rawHeaders []byte
 }
 
 // RequestHeader represents HTTP request header.
@@ -120,6 +123,11 @@ func (h *RequestHeader) SetByteRange(startPos, endPos int) {
 	h.bufV = b
 
 	h.setNonSpecial(strRange, h.bufV)
+}
+
+// RawHeaders returns raw header key/value bytes.
+func (h *ResponseHeader) RawHeaders() []byte {
+	return h.rawHeaders
 }
 
 // StatusCode returns response status code.
@@ -903,6 +911,7 @@ func (h *ResponseHeader) resetSkipNormalize() {
 	h.cookies = h.cookies[:0]
 	h.trailer = h.trailer[:0]
 	h.mulHeader = h.mulHeader[:0]
+	h.rawHeaders = h.rawHeaders[:0]
 }
 
 // Reset clears request header.
@@ -962,6 +971,7 @@ func (h *ResponseHeader) CopyTo(dst *ResponseHeader) {
 	dst.statusMessage = append(dst.statusMessage, h.statusMessage...)
 	dst.contentEncoding = append(dst.contentEncoding, h.contentEncoding...)
 	dst.server = append(dst.server, h.server...)
+	dst.rawHeaders = append(dst.rawHeaders, h.rawHeaders...)
 }
 
 // CopyTo copies all the headers to dst.
@@ -2527,6 +2537,10 @@ func appendHeaderLine(dst, key, value []byte) []byte {
 
 func (h *ResponseHeader) parse(buf []byte) (int, error) {
 	m, err := h.parseFirstLine(buf)
+	if err != nil {
+		return 0, err
+	}
+	h.rawHeaders, _, err = readRawHeaders(h.rawHeaders[:0], buf[m:])
 	if err != nil {
 		return 0, err
 	}

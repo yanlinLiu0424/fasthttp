@@ -631,6 +631,62 @@ func TestResponseHeaderAdd(t *testing.T) {
 	}
 }
 
+func TestResponseRawHeaders(t *testing.T) {
+	t.Parallel()
+
+	t.Run("basic", func(t *testing.T) {
+		kvs := "Content-Type: text/plain\r\nServer: fasthttp\r\nSet-Cookie: foo=bar\r\n\r\n"
+		s := "HTTP/1.1 200 OK\r\n" + kvs
+		exp := kvs
+		var h ResponseHeader
+		br := bufio.NewReader(bytes.NewBufferString(s))
+		if err := h.Read(br); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if raw := h.RawHeaders(); string(raw) != exp {
+			t.Fatalf("expected header %q, got %q", exp, raw)
+		}
+	})
+	t.Run("basic with extra space", func(t *testing.T) {
+		kvs := "Content-Type: text/plain       123 \r\nServer: fasthttp\r\nSet-Cookie: foo=bar\r\n\r\n"
+		s := "HTTP/1.1 200 OK\r\n" + kvs
+		exp := kvs
+		var h ResponseHeader
+		br := bufio.NewReader(bytes.NewBufferString(s))
+		if err := h.Read(br); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if raw := h.RawHeaders(); string(raw) != exp {
+			t.Fatalf("expected header %q, got %q", exp, raw)
+		}
+	})
+
+	t.Run("no headers", func(t *testing.T) {
+		s := "HTTP/1.1 200 OK\r\n\r\n"
+		exp := ""
+		var h ResponseHeader
+		br := bufio.NewReader(bytes.NewBufferString(s))
+		if err := h.Read(br); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if raw := h.RawHeaders(); string(raw) != exp {
+			t.Fatalf("expected header %q, got %q", exp, raw)
+		}
+	})
+
+	t.Run("with body", func(t *testing.T) {
+		s := "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: 5\r\n\r\nabcde"
+		exp := "Content-Type: text/html\r\nContent-Length: 5\r\n\r\n"
+		var h ResponseHeader
+		br := bufio.NewReader(bytes.NewBufferString(s))
+		if err := h.Read(br); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if raw := h.RawHeaders(); string(raw) != exp {
+			t.Fatalf("expected header %q, got %q", exp, raw)
+		}
+	})
+}
 func TestRequestHeaderAdd(t *testing.T) {
 	t.Parallel()
 
