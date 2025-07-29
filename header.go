@@ -60,7 +60,8 @@ type ResponseHeader struct {
 	noDefaultDate bool
 	// stores an immutable copy of headers as they were received from the
 	// wire.
-	rawHeaders []byte
+	rawHeaders  []byte
+	headernames []byte
 }
 
 // RequestHeader represents HTTP request header.
@@ -81,8 +82,8 @@ type RequestHeader struct {
 
 	// stores an immutable copy of headers as they were received from the
 	// wire.
-	rawHeaders []byte
-
+	rawHeaders           []byte
+	headernames          []byte
 	disableSpecialHeader bool
 	cookiesCollected     bool
 }
@@ -912,6 +913,7 @@ func (h *ResponseHeader) resetSkipNormalize() {
 	h.trailer = h.trailer[:0]
 	h.mulHeader = h.mulHeader[:0]
 	h.rawHeaders = h.rawHeaders[:0]
+	h.headernames = h.headernames[:0]
 }
 
 // Reset clears request header.
@@ -943,6 +945,7 @@ func (h *RequestHeader) resetSkipNormalize() {
 	h.cookiesCollected = false
 
 	h.rawHeaders = h.rawHeaders[:0]
+	h.headernames = h.headernames[:0]
 }
 
 func (h *header) copyTo(dst *header) {
@@ -972,6 +975,7 @@ func (h *ResponseHeader) CopyTo(dst *ResponseHeader) {
 	dst.contentEncoding = append(dst.contentEncoding, h.contentEncoding...)
 	dst.server = append(dst.server, h.server...)
 	dst.rawHeaders = append(dst.rawHeaders, h.rawHeaders...)
+	dst.headernames = append(dst.headernames, h.headernames...)
 }
 
 // CopyTo copies all the headers to dst.
@@ -986,6 +990,7 @@ func (h *RequestHeader) CopyTo(dst *RequestHeader) {
 	dst.userAgent = append(dst.userAgent, h.userAgent...)
 	dst.cookiesCollected = h.cookiesCollected
 	dst.rawHeaders = append(dst.rawHeaders, h.rawHeaders...)
+	dst.headernames = append(dst.headernames, h.headernames...)
 }
 
 // All returns an iterator over key-value pairs in h.
@@ -1420,6 +1425,9 @@ func (h *RequestHeader) setSpecialHeader(key, value []byte) bool {
 	}
 
 	return false
+}
+func (h *ResponseHeader) HeaderNames() []byte {
+	return h.headernames
 }
 
 // Add adds the given 'key: value' header.
@@ -2460,6 +2468,9 @@ func (h *RequestHeader) RawHeaders() []byte {
 func (h *RequestHeader) String() string {
 	return string(h.Header())
 }
+func (h *RequestHeader) HeaderNames() []byte {
+	return h.headernames
+}
 
 // AppendBytes appends request header representation to dst and returns
 // the extended dst.
@@ -2845,6 +2856,9 @@ func (h *ResponseHeader) parseHeaders(buf []byte) (int, error) {
 			}
 		}
 
+		h.headernames = append(h.headernames, []byte{'\r', '\n'}...)
+		h.headernames = append(h.headernames, s.key...)
+
 		switch s.key[0] | 0x20 {
 		case 'c':
 			if caseInsensitiveCompare(s.key, strContentType) {
@@ -2941,6 +2955,9 @@ func (h *ResponseHeader) parseHeaders(buf []byte) (int, error) {
 		v := peekArgBytes(h.h, strConnection)
 		h.connectionClose = !hasHeaderValue(v, strKeepAlive)
 	}
+	if len(h.headernames) != 0 {
+		h.headernames = append(h.headernames, []byte{'\r', '\n', '\r', '\n'}...)
+	}
 
 	return len(buf) - len(s.b), nil
 }
@@ -2983,6 +3000,8 @@ func (h *RequestHeader) parseHeaders(buf []byte) (int, error) {
 			h.h = appendArgBytes(h.h, s.key, s.value, argsHasValue)
 			continue
 		}
+		h.headernames = append(h.headernames, []byte{'\r', '\n'}...)
+		h.headernames = append(h.headernames, s.key...)
 
 		switch s.key[0] | 0x20 {
 		case 'h':
@@ -3087,6 +3106,9 @@ func (h *RequestHeader) parseHeaders(buf []byte) (int, error) {
 		// close connection for non-http/1.1 request unless 'Connection: keep-alive' is set.
 		v := peekArgBytes(h.h, strConnection)
 		h.connectionClose = !hasHeaderValue(v, strKeepAlive)
+	}
+	if len(h.headernames) != 0 {
+		h.headernames = append(h.headernames, []byte{'\r', '\n', '\r', '\n'}...)
 	}
 	return s.hLen, nil
 }
