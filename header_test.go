@@ -678,6 +678,7 @@ func TestResponseRawHeaders(t *testing.T) {
 		s := "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: 5\r\n\r\nabcde"
 		exp := "Content-Type: text/html\r\nContent-Length: 5\r\n\r\n"
 		var h ResponseHeader
+
 		br := bufio.NewReader(bytes.NewBufferString(s))
 		if err := h.Read(br); err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -686,6 +687,51 @@ func TestResponseRawHeaders(t *testing.T) {
 			t.Fatalf("expected header %q, got %q", exp, raw)
 		}
 	})
+}
+
+func TestRequestHeaderNames(t *testing.T) {
+	t.Parallel()
+
+	raw := "GET / HTTP/1.1\r\nHost: test.com\r\nUser-Agent: fasthttp\r\nX-Test: abc\r\n\r\n"
+	var h RequestHeader
+	br := bufio.NewReader(bytes.NewBufferString(raw))
+	if err := h.Read(br); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	names := h.HeaderNames()
+
+	if !bytes.Contains(names, []byte("Host")) {
+		t.Errorf("header names should contain Host")
+	}
+	if !bytes.Contains(names, []byte("User-Agent")) {
+		t.Errorf("header names should contain User-Agent")
+	}
+	if !bytes.Contains(names, []byte("X-Test")) {
+		t.Errorf("header names should contain X-Test")
+	}
+}
+func TestResponseHeaderNames(t *testing.T) {
+	t.Parallel()
+
+	raw := "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nServer: fasthttp\r\nX-Test: abc\r\n\r\n"
+	var h ResponseHeader
+	br := bufio.NewReader(bytes.NewBufferString(raw))
+	if err := h.Read(br); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	names := h.HeaderNames()
+
+	if !bytes.Contains(names, []byte("Content-Type")) {
+		t.Errorf("header names should contain Content-Type")
+	}
+	if !bytes.Contains(names, []byte("Server")) {
+		t.Errorf("header names should contain Server")
+	}
+	if !bytes.Contains(names, []byte("X-Test")) {
+		t.Errorf("header names should contain X-Test")
+	}
 }
 func TestRequestHeaderAdd(t *testing.T) {
 	t.Parallel()
